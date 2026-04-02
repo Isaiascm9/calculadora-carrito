@@ -17,7 +17,7 @@
             --tab-bg: #f1f5f9;
             --tab-active: white;
             --tab-text: #64748b;
-            --btn-plus: #2563eb; /* Azul por defecto */
+            --btn-plus: #2563eb;
         }
 
         .dark {
@@ -307,22 +307,23 @@
         </div>
     </main>
 
-    <!-- Firebase SDK -->
+    <!-- Script de lógica con manejo de entorno seguro -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+        // CONFIGURACIÓN DE SEGURIDAD PARA GITHUB
+        // Si no existen las variables globales del editor, el app no se queda pegada
+        const hasFirebaseEnv = typeof __firebase_config !== 'undefined';
+        
         let shoppingCart = [];
         let currentMode = 'USD';
         let isDarkMode = false;
         let currentUser = null;
+        let db = null;
+        let auth = null;
+        let appId = 'local-app';
 
         const parse = (val) => {
             if (!val) return 0;
@@ -336,22 +337,41 @@
             setTimeout(() => t.classList.remove('show'), 1500);
         };
 
-        const init = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
+        const hideLoading = () => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
         };
 
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                setupListeners(user.uid);
-                document.getElementById('loading').style.opacity = '0';
-                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
-            }
-        });
+        // INICIALIZACIÓN
+        if (hasFirebaseEnv) {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            const initAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            };
+
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    setupListeners(user.uid);
+                    hideLoading();
+                }
+            });
+            initAuth();
+        } else {
+            // MODO LOCAL (Si se sube a GitHub sin configurar Firebase)
+            console.warn("Entorno Firebase no detectado. Funcionando en modo local.");
+            hideLoading();
+            render();
+        }
 
         const setupListeners = (uid) => {
             const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'settings');
@@ -362,7 +382,7 @@
                     document.getElementById('shop-name').value = data.shopName || "";
                     recalculateTotals();
                 }
-            }, (err) => console.error(err));
+            });
 
             const itemsRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
             onSnapshot(itemsRef, (snap) => {
@@ -372,11 +392,11 @@
                 });
                 shoppingCart.sort((a, b) => b.createdAt - a.createdAt);
                 render();
-            }, (err) => console.error(err));
+            });
         };
 
         window.updateProfile = async () => {
-            if (!currentUser) return;
+            if (!currentUser || !db) return;
             const tasa = document.getElementById('tasa-input').value;
             const shopName = document.getElementById('shop-name').value;
             const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'settings');
@@ -386,10 +406,6 @@
         window.toggleTheme = () => {
             isDarkMode = !isDarkMode;
             document.body.classList.toggle('dark', isDarkMode);
-            const icon = document.getElementById('theme-icon');
-            icon.innerHTML = isDarkMode 
-                ? '<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34L52.69,41.37a8,8,0,0,0-11.32,11.32Zm0,116.68-17,17a8,8,0,0,0,11.32,11.32l17-17a8,8,0,0,0-11.32-11.32ZM197.66,69.66l17-17a8,8,0,0,0-11.32-11.32l-17,17a8,8,0,0,0,11.32,11.32Zm0,116.68a8,8,0,0,0-11.32,11.32l17,17a8,8,0,0,0,11.32-11.32ZM240,120H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H16a8,8,0,0,0,0,16H40a8,8,0,0,0,0-16Zm157.66,77.66L214.63,214.63a8,8,0,0,0,11.32-11.32l-17-17a8,8,0,0,0-11.32,11.32ZM120,216v24a8,8,0,0,0,16,0V216a8,8,0,0,0-16,0Z"></path>'
-                : '<path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>';
         };
 
         window.changeMode = (mode) => {
@@ -398,19 +414,15 @@
             document.getElementById('mode-ves').className = mode === 'VES' ? 'tab-btn tab-active' : 'tab-btn';
             document.getElementById('price-label').innerText = mode === 'USD' ? 'Precio $' : 'Precio Bs';
             
-            // Cambio de color dinámico del botón
             const addBtn = document.getElementById('add-btn');
             addBtn.style.backgroundColor = mode === 'USD' ? '#22c55e' : '#2563eb';
-            
             document.getElementById('prod-price').focus();
         };
 
         window.addToList = async () => {
-            if (!currentUser) return;
             const pInput = document.getElementById('prod-price');
             const nInput = document.getElementById('prod-name');
             const price = parse(pInput.value);
-            
             if (price <= 0) return;
 
             const item = {
@@ -420,8 +432,15 @@
                 createdAt: Date.now()
             };
 
-            const itemsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'items');
-            await addDoc(itemsRef, item);
+            if (currentUser && db) {
+                const itemsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'items');
+                await addDoc(itemsRef, item);
+            } else {
+                // Modo local
+                item.id = Date.now().toString();
+                shoppingCart.unshift(item);
+                render();
+            }
             
             pInput.value = '';
             nInput.value = '';
@@ -430,16 +449,24 @@
         };
 
         window.removeItem = async (id) => {
-            if (!currentUser) return;
-            const itemRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', id);
-            await deleteDoc(itemRef);
+            if (currentUser && db) {
+                const itemRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', id);
+                await deleteDoc(itemRef);
+            } else {
+                shoppingCart = shoppingCart.filter(i => i.id !== id);
+                render();
+            }
         };
 
         window.clearCart = async () => {
-            if (!currentUser || shoppingCart.length === 0) return;
-            // No usamos batch por regla de queries simples, borramos uno a uno o simplemente el que pide la imagen
-            for (const item of shoppingCart) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', item.id));
+            if (shoppingCart.length === 0) return;
+            if (currentUser && db) {
+                for (const item of shoppingCart) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', item.id));
+                }
+            } else {
+                shoppingCart = [];
+                render();
             }
             showToast("Carrito Vacío");
         };
@@ -451,8 +478,7 @@
             shoppingCart.forEach(i => {
                 const usd = i.mode === 'USD' ? i.original : i.original / tasa;
                 const ves = i.mode === 'VES' ? i.original : i.original * tasa;
-                tUsd += usd;
-                tVes += ves;
+                tUsd += usd; tVes += ves;
             });
 
             document.getElementById('total-usd').innerText = tUsd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -472,7 +498,6 @@
             shoppingCart.forEach(item => {
                 const vesValue = item.mode === 'VES' ? item.original : item.original * tasa;
                 const usdValue = item.mode === 'USD' ? item.original : item.original / tasa;
-                
                 const alt = item.mode === 'USD' 
                     ? `≈ Bs ${vesValue.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}` 
                     : `≈ $ ${usdValue.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
@@ -498,26 +523,22 @@
             const shop = document.getElementById('shop-name').value.trim();
             const date = document.getElementById('date-display').innerText;
             const tasaValue = parse(document.getElementById('tasa-input').value);
-            
             let tu = 0, tv = 0;
             let m = `🛒 *CARRITO: ${shop ? shop.toUpperCase() : 'MI COMPRA'}*\n`;
             m += `📅 ${date}\n`;
             m += `━━━━━━━━━━━━━━━\n`;
-            
             shoppingCart.forEach(i => {
                 const iv = i.mode === 'VES' ? i.original : i.original * tasaValue;
                 const iu = i.mode === 'USD' ? i.original : i.original / tasaValue;
                 tu += iu; tv += iv;
                 m += `• ${i.name}: Bs ${iv.toLocaleString('es-VE', {minimumFractionDigits:2})} / ${iu.toLocaleString('en-US', {minimumFractionDigits:2})} $\n`;
             });
-            
             m += `━━━━━━━━━━━━━━━\n`;
             m += `💵 TOTAL USD: $ ${tu.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
             m += `🇻🇪 TOTAL BS: Bs ${tv.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
             m += `📊 TASA: ${tasaValue} Bs/$\n`;
             m += `━━━━━━━━━━━━━━━\n`;
             m += `Generado por Feedback 2026`;
-            
             window.open(`https://wa.me/?text=${encodeURIComponent(m)}`);
         };
 
@@ -527,8 +548,6 @@
 
         const now = new Date();
         document.getElementById('date-display').innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
-
-        init();
     </script>
 </body>
 </html>
