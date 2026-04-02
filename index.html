@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculadora Premium 3.10 - Feedback 2026</title>
+    <title>Mi Carrito - Premium Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -17,6 +17,7 @@
             --tab-bg: #f1f5f9;
             --tab-active: white;
             --tab-text: #64748b;
+            --btn-plus: #2563eb; /* Azul por defecto */
         }
 
         .dark {
@@ -86,6 +87,11 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
+        .btn-plus-dynamic {
+            background-color: var(--btn-plus);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
         .btn-send-text {
             background: #25D366;
             color: white;
@@ -152,15 +158,61 @@
             border-radius: 12px;
             padding: 8px;
             cursor: pointer;
-            transition: background 0.2s;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-body);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #3b82f633;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn-borrar-todo {
+            background: #fff5f5;
+            color: #e53e3e;
+            border: 1px solid #fed7d7;
+            padding: 0.5rem 1.2rem;
+            border-radius: 0.8rem;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            transition: all 0.2s;
         }
         
-        .theme-toggle:active {
-            background: rgba(255,255,255,0.15);
+        .dark .btn-borrar-todo {
+            background: #742a2a33;
+            border-color: #9b2c2c55;
+        }
+
+        .btn-borrar-todo:active {
+            transform: scale(0.95);
+            background: #feb2b2;
         }
     </style>
 </head>
 <body>
+
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
 
     <div id="toast">¡Sumado!</div>
 
@@ -170,16 +222,15 @@
                 <div class="flex-1 mr-4">
                     <div class="flex items-center gap-3 mb-1">
                         <h1 class="text-xl font-800 tracking-tight flex items-center gap-2">
-                            <span>🛒</span> Carrito
+                            <span>🛒</span> Mi Carrito
                         </h1>
-                        <!-- Icono de modo oscuro solicitado -->
                         <button onclick="toggleTheme()" class="theme-toggle" title="Cambiar tema">
                             <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 256 256">
                                 <path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>
                             </svg>
                         </button>
                     </div>
-                    <input type="text" id="shop-name" 
+                    <input type="text" id="shop-name" onchange="updateProfile()"
                            class="text-slate-400 font-500 text-xs border-b border-white/10 py-1" 
                            placeholder="Nombre del establecimiento">
                 </div>
@@ -187,7 +238,7 @@
                 <div class="text-right">
                     <div class="bg-slate-800/80 px-3 py-1.5 rounded-2xl">
                         <p class="text-[8px] font-black text-slate-500 uppercase">Tasa Bs/$</p>
-                        <input type="text" id="tasa-input" inputmode="decimal" value="44.14" oninput="recalculate()"
+                        <input type="text" id="tasa-input" inputmode="decimal" value="44.14" onchange="updateProfile()"
                                class="font-800 text-white text-lg text-right w-16">
                     </div>
                     <p id="date-display" class="text-[9px] font-bold text-slate-500 mt-1 uppercase text-right tracking-tighter"></p>
@@ -231,11 +282,19 @@
                         <label id="price-label" class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Precio $</label>
                         <input type="text" id="prod-price" inputmode="decimal" class="text-3xl font-900" placeholder="0.00">
                     </div>
-                    <button onclick="addToList()" class="bg-blue-600 text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+                    <button id="add-btn" onclick="addToList()" class="btn-plus-dynamic text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-transform" style="background-color: #22c55e;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H140v76a12,12,0,0,1-24,0V140H40a12,12,0,0,1,0-24h76V40a12,12,0,0,1,24,0v76h76A12,12,0,0,1,228,128Z"></path></svg>
                     </button>
                 </div>
+                <p class="text-[10px] text-center font-bold text-slate-400 uppercase tracking-tight">
+                    Presiona enter o el botón "+" para sumar
+                </p>
             </div>
+        </div>
+
+        <div class="flex justify-between items-center px-2 py-4">
+            <h2 class="text-[13px] font-800 text-slate-500 uppercase tracking-wide">Resumen de cuenta</h2>
+            <button id="btn-clear-all" onclick="clearCart()" class="btn-borrar-todo hidden">Borrar Todo</button>
         </div>
 
         <div id="items-list" class="space-y-2.5"></div>
@@ -248,153 +307,228 @@
         </div>
     </main>
 
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         let shoppingCart = [];
         let currentMode = 'USD';
         let isDarkMode = false;
+        let currentUser = null;
 
-        const dateEl = document.getElementById('date-display');
-        const now = new Date();
-        dateEl.innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
+        const parse = (val) => {
+            if (!val) return 0;
+            return parseFloat(val.toString().replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+        };
 
-        function toggleTheme() {
+        const showToast = (text = "¡Sumado!") => {
+            const t = document.getElementById('toast');
+            t.innerText = text;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 1500);
+        };
+
+        const init = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                setupListeners(user.uid);
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            }
+        });
+
+        const setupListeners = (uid) => {
+            const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'settings');
+            onSnapshot(profileRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    document.getElementById('tasa-input').value = data.tasa || "44.14";
+                    document.getElementById('shop-name').value = data.shopName || "";
+                    recalculateTotals();
+                }
+            }, (err) => console.error(err));
+
+            const itemsRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
+            onSnapshot(itemsRef, (snap) => {
+                shoppingCart = [];
+                snap.forEach(doc => {
+                    shoppingCart.push({ id: doc.id, ...doc.data() });
+                });
+                shoppingCart.sort((a, b) => b.createdAt - a.createdAt);
+                render();
+            }, (err) => console.error(err));
+        };
+
+        window.updateProfile = async () => {
+            if (!currentUser) return;
+            const tasa = document.getElementById('tasa-input').value;
+            const shopName = document.getElementById('shop-name').value;
+            const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'settings');
+            await setDoc(profileRef, { tasa, shopName }, { merge: true });
+        };
+
+        window.toggleTheme = () => {
             isDarkMode = !isDarkMode;
             document.body.classList.toggle('dark', isDarkMode);
             const icon = document.getElementById('theme-icon');
-            if(isDarkMode) {
-                // Icono Sol
-                icon.innerHTML = '<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34L52.69,41.37a8,8,0,0,0-11.32,11.32Zm0,116.68-17,17a8,8,0,0,0,11.32,11.32l17-17a8,8,0,0,0-11.32-11.32ZM197.66,69.66l17-17a8,8,0,0,0-11.32-11.32l-17,17a8,8,0,0,0,11.32,11.32Zm0,116.68a8,8,0,0,0-11.32,11.32l17,17a8,8,0,0,0,11.32-11.32ZM240,120H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H16a8,8,0,0,0,0,16H40a8,8,0,0,0,0-16Zm157.66,77.66L214.63,214.63a8,8,0,0,0,11.32-11.32l-17-17a8,8,0,0,0-11.32,11.32ZM120,216v24a8,8,0,0,0,16,0V216a8,8,0,0,0-16,0Z"></path>';
-            } else {
-                // Icono Luna
-                icon.innerHTML = '<path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>';
-            }
-        }
+            icon.innerHTML = isDarkMode 
+                ? '<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34L52.69,41.37a8,8,0,0,0-11.32,11.32Zm0,116.68-17,17a8,8,0,0,0,11.32,11.32l17-17a8,8,0,0,0-11.32-11.32ZM197.66,69.66l17-17a8,8,0,0,0-11.32-11.32l-17,17a8,8,0,0,0,11.32,11.32Zm0,116.68a8,8,0,0,0-11.32,11.32l17,17a8,8,0,0,0,11.32-11.32ZM240,120H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H16a8,8,0,0,0,0,16H40a8,8,0,0,0,0-16Zm157.66,77.66L214.63,214.63a8,8,0,0,0,11.32-11.32l-17-17a8,8,0,0,0-11.32,11.32ZM120,216v24a8,8,0,0,0,16,0V216a8,8,0,0,0-16,0Z"></path>'
+                : '<path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>';
+        };
 
-        function parse(val) {
-            if (!val) return 0;
-            return parseFloat(val.toString().replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-        }
-
-        function showToast() {
-            const t = document.getElementById('toast');
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 1500);
-        }
-
-        function changeMode(mode) {
+        window.changeMode = (mode) => {
             currentMode = mode;
             document.getElementById('mode-usd').className = mode === 'USD' ? 'tab-btn tab-active' : 'tab-btn';
             document.getElementById('mode-ves').className = mode === 'VES' ? 'tab-btn tab-active' : 'tab-btn';
             document.getElementById('price-label').innerText = mode === 'USD' ? 'Precio $' : 'Precio Bs';
+            
+            // Cambio de color dinámico del botón
+            const addBtn = document.getElementById('add-btn');
+            addBtn.style.backgroundColor = mode === 'USD' ? '#22c55e' : '#2563eb';
+            
             document.getElementById('prod-price').focus();
-        }
+        };
 
-        function addToList() {
+        window.addToList = async () => {
+            if (!currentUser) return;
             const pInput = document.getElementById('prod-price');
             const nInput = document.getElementById('prod-name');
-            const tInput = document.getElementById('tasa-input');
-            
             const price = parse(pInput.value);
+            
             if (price <= 0) return;
 
-            const tasa = parse(tInput.value) || 44.14;
-            
             const item = {
-                id: Date.now(),
                 name: nInput.value.trim() || 'Item ' + (shoppingCart.length + 1),
                 original: price,
                 mode: currentMode,
-                usd: currentMode === 'USD' ? price : Number((price / tasa).toFixed(2)),
-                ves: currentMode === 'VES' ? price : Number((price * tasa).toFixed(2))
+                createdAt: Date.now()
             };
 
-            shoppingCart.push(item);
+            const itemsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'items');
+            await addDoc(itemsRef, item);
+            
             pInput.value = '';
             nInput.value = '';
-            render();
             showToast();
             nInput.focus();
-        }
+        };
 
-        function render() {
+        window.removeItem = async (id) => {
+            if (!currentUser) return;
+            const itemRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', id);
+            await deleteDoc(itemRef);
+        };
+
+        window.clearCart = async () => {
+            if (!currentUser || shoppingCart.length === 0) return;
+            // No usamos batch por regla de queries simples, borramos uno a uno o simplemente el que pide la imagen
+            for (const item of shoppingCart) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', item.id));
+            }
+            showToast("Carrito Vacío");
+        };
+
+        const recalculateTotals = () => {
+            const tasa = parse(document.getElementById('tasa-input').value) || 1;
+            let tUsd = 0, tVes = 0;
+            
+            shoppingCart.forEach(i => {
+                const usd = i.mode === 'USD' ? i.original : i.original / tasa;
+                const ves = i.mode === 'VES' ? i.original : i.original * tasa;
+                tUsd += usd;
+                tVes += ves;
+            });
+
+            document.getElementById('total-usd').innerText = tUsd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('total-ves').innerText = tVes.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+        };
+
+        const render = () => {
             const list = document.getElementById('items-list');
             const action = document.getElementById('action-container');
+            const btnClear = document.getElementById('btn-clear-all');
+            const tasa = parse(document.getElementById('tasa-input').value) || 1;
+            
             list.innerHTML = '';
-            let tUsd = 0, tVes = 0;
-
             action.style.display = shoppingCart.length > 0 ? 'block' : 'none';
+            btnClear.classList.toggle('hidden', shoppingCart.length === 0);
 
-            [...shoppingCart].reverse().forEach(item => {
-                tUsd += item.usd; 
-                tVes += item.ves;
-                
-                const card = document.createElement('div');
-                card.className = "premium-card p-4 flex justify-between items-center mb-2 shadow-sm";
+            shoppingCart.forEach(item => {
+                const vesValue = item.mode === 'VES' ? item.original : item.original * tasa;
+                const usdValue = item.mode === 'USD' ? item.original : item.original / tasa;
                 
                 const alt = item.mode === 'USD' 
-                    ? `≈ Bs ${item.ves.toLocaleString('es-VE', {minimumFractionDigits:2})}` 
-                    : `≈ $ ${item.usd.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+                    ? `≈ Bs ${vesValue.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}` 
+                    : `≈ $ ${usdValue.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
 
+                const card = document.createElement('div');
+                card.className = "premium-card p-4 flex justify-between items-center mb-2 shadow-sm";
                 card.innerHTML = `
                     <div class="truncate mr-4">
                         <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${item.name}</p>
                         <p class="text-xl font-800">${item.mode==='USD'?'$':'Bs'} ${item.original.toLocaleString('es-VE', {minimumFractionDigits:2})}</p>
                         <p class="text-[10px] font-bold text-blue-500">${alt}</p>
                     </div>
-                    <button onclick="removeItem(${item.id})" class="text-red-400/50 hover:text-red-500 p-2 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg></button>
+                    <button onclick="removeItem('${item.id}')" class="text-red-400/50 hover:text-red-500 p-2 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg>
+                    </button>
                 `;
                 list.appendChild(card);
             });
+            recalculateTotals();
+        };
 
-            document.getElementById('total-usd').innerText = tUsd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-            document.getElementById('total-ves').innerText = tVes.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
-        }
-
-        function removeItem(id) {
-            shoppingCart = shoppingCart.filter(i => i.id !== id);
-            render();
-        }
-
-        function recalculate() {
-            const tasa = parse(document.getElementById('tasa-input').value) || 1;
-            shoppingCart = shoppingCart.map(i => ({
-                ...i,
-                usd: i.mode === 'USD' ? i.original : Number((i.original / tasa).toFixed(2)),
-                ves: i.mode === 'VES' ? i.original : Number((i.original * tasa).toFixed(2))
-            }));
-            render();
-        }
-
-        function sendWhatsApp() {
+        window.sendWhatsApp = () => {
             const shop = document.getElementById('shop-name').value.trim();
             const date = document.getElementById('date-display').innerText;
-            const tasa = document.getElementById('tasa-input').value;
-            let tu = 0, tv = 0;
+            const tasaValue = parse(document.getElementById('tasa-input').value);
             
+            let tu = 0, tv = 0;
             let m = `🛒 *CARRITO: ${shop ? shop.toUpperCase() : 'MI COMPRA'}*\n`;
             m += `📅 ${date}\n`;
             m += `━━━━━━━━━━━━━━━\n`;
             
             shoppingCart.forEach(i => {
-                tu += i.usd; tv += i.ves;
-                const vVes = i.ves.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
-                const vUsd = i.usd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-                m += `• ${i.name}: Bs ${vVes} / ${vUsd} $\n`;
+                const iv = i.mode === 'VES' ? i.original : i.original * tasaValue;
+                const iu = i.mode === 'USD' ? i.original : i.original / tasaValue;
+                tu += iu; tv += iv;
+                m += `• ${i.name}: Bs ${iv.toLocaleString('es-VE', {minimumFractionDigits:2})} / ${iu.toLocaleString('en-US', {minimumFractionDigits:2})} $\n`;
             });
             
             m += `━━━━━━━━━━━━━━━\n`;
             m += `💵 TOTAL USD: $ ${tu.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
             m += `🇻🇪 TOTAL BS: Bs ${tv.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
-            m += `📊 TASA: ${tasa} Bs/$\n`;
+            m += `📊 TASA: ${tasaValue} Bs/$\n`;
             m += `━━━━━━━━━━━━━━━\n`;
             m += `Generado por Feedback 2026`;
             
             window.open(`https://wa.me/?text=${encodeURIComponent(m)}`);
-        }
+        };
 
         document.getElementById('prod-price').addEventListener('keypress', (e) => {
             if(e.key === 'Enter') addToList();
         });
+
+        const now = new Date();
+        document.getElementById('date-display').innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        init();
     </script>
 </body>
 </html>
