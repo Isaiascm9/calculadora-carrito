@@ -252,7 +252,7 @@
                 <div class="text-right">
                     <div class="bg-slate-800/80 px-3 py-1.5 rounded-2xl">
                         <p class="text-[8px] font-black text-slate-500 uppercase">Tasa Bs/$</p>
-                        <input type="text" id="tasa-input" inputmode="decimal" value="44.14" oninput="saveProfile()"
+                        <input type="text" id="tasa-input" inputmode="decimal" value="44.14" oninput="saveProfile(); render();"
                                class="font-800 text-white text-lg text-right w-16">
                     </div>
                     <p id="date-display" class="text-[9px] font-bold text-slate-500 mt-1 uppercase text-right tracking-tighter"></p>
@@ -340,23 +340,19 @@
         let auth = null;
         let appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-carrito-premium';
 
-        const parse = (val) => {
+        const parseNum = (val) => {
             if (!val) return 0;
-            // Primero quitamos los puntos de miles (formato visual)
             let clean = val.toString().replace(/\./g, '');
-            // Luego cambiamos coma por punto decimal si existe
             clean = clean.replace(',', '.');
             return parseFloat(clean) || 0;
         };
 
-        // Formateo visual en tiempo real
         window.formatInputPrice = (input) => {
-            let value = input.value.replace(/\D/g, ""); // Solo números
+            let value = input.value.replace(/\D/g, "");
             if (value === "") {
                 input.value = "";
                 return;
             }
-            // Formatear con puntos de miles usando configuración regional es-VE o es-ES
             input.value = new Intl.NumberFormat('de-DE').format(value);
         };
 
@@ -375,148 +371,11 @@
             }
         };
 
-        setTimeout(hideLoading, 3000);
-
-        if (hasFirebaseEnv) {
-            try {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (e) {
-                        hideLoading();
-                    }
-                };
-
-                onAuthStateChanged(auth, (user) => {
-                    currentUser = user;
-                    if (user) setupFirebaseListeners(user.uid);
-                    hideLoading();
-                });
-                initAuth();
-            } catch (e) {
-                hideLoading();
-            }
-        } else {
-            hideLoading();
-        }
-
-        const setupFirebaseListeners = (uid) => {
-            const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'settings');
-            onSnapshot(profileRef, (snap) => {
-                if (snap.exists()) {
-                    const data = snap.data();
-                    document.getElementById('tasa-input').value = data.tasa || "44.14";
-                    document.getElementById('shop-name').value = data.shopName || "";
-                    render();
-                }
-            }, (err) => console.log(err));
-
-            const itemsRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
-            onSnapshot(itemsRef, (snap) => {
-                shoppingCart = [];
-                snap.forEach(doc => {
-                    shoppingCart.push({ id: doc.id, ...doc.data() });
-                });
-                shoppingCart.sort((a, b) => b.createdAt - a.createdAt);
-                render();
-            }, (err) => console.log(err));
-        };
-
-        window.saveProfile = async () => {
-            const tasa = document.getElementById('tasa-input').value;
-            const shopName = document.getElementById('shop-name').value;
-            if (currentUser && db) {
-                const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'settings');
-                await setDoc(profileRef, { tasa, shopName }, { merge: true });
-            }
-        };
-
-        window.toggleTheme = () => {
-            isDarkMode = !isDarkMode;
-            const iconPath = document.getElementById('icon-path');
-            if (isDarkMode) {
-                document.body.classList.add('dark');
-                iconPath.setAttribute('d', MOON_PATH);
-            } else {
-                document.body.classList.remove('dark');
-                iconPath.setAttribute('d', SUN_PATH);
-            }
-        };
-
-        window.changeMode = (mode) => {
-            currentMode = mode;
-            document.getElementById('mode-usd').className = mode === 'USD' ? 'tab-btn tab-active' : 'tab-btn';
-            document.getElementById('mode-ves').className = mode === 'VES' ? 'tab-btn tab-active' : 'tab-btn';
-            document.getElementById('price-label').innerText = mode === 'USD' ? 'Precio $' : 'Precio Bs';
-            const addBtn = document.getElementById('add-btn');
-            addBtn.style.backgroundColor = mode === 'USD' ? '#22c55e' : '#2563eb';
-            document.getElementById('prod-price').focus();
-        };
-
-        window.addToList = async () => {
-            const pInput = document.getElementById('prod-price');
-            const nInput = document.getElementById('prod-name');
-            const price = parse(pInput.value);
-            if (price <= 0) return;
-
-            const item = {
-                name: nInput.value.trim() || 'Artículo ' + (shoppingCart.length + 1),
-                original: price,
-                mode: currentMode,
-                createdAt: Date.now()
-            };
-
-            if (currentUser && db) {
-                const itemsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'items');
-                await addDoc(itemsRef, item);
-            } else {
-                shoppingCart.unshift({...item, id: Date.now().toString()});
-                render();
-            }
-            
-            pInput.value = '';
-            nInput.value = '';
-            showToast();
-            nInput.focus();
-        };
-
-        window.removeItem = async (id) => {
-            if (currentUser && db) {
-                const itemRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', id);
-                await deleteDoc(itemRef);
-            } else {
-                shoppingCart = shoppingCart.filter(i => i.id !== id);
-                render();
-            }
-        };
-
-        window.clearCart = async () => {
-            if (shoppingCart.length === 0) return;
-            if (currentUser && db) {
-                for (const item of shoppingCart) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', item.id));
-                }
-            } else {
-                shoppingCart = [];
-                render();
-            }
-            showToast("Carrito Vacío");
-        };
-
-        const render = () => {
+        window.render = () => {
             const list = document.getElementById('items-list');
             const action = document.getElementById('action-container');
             const btnClear = document.getElementById('btn-clear-all');
-            const tasa = parse(document.getElementById('tasa-input').value) || 1;
+            const tasa = parseNum(document.getElementById('tasa-input').value) || 1;
             
             list.innerHTML = '';
             action.style.display = shoppingCart.length > 0 ? 'block' : 'none';
@@ -554,10 +413,159 @@
             document.getElementById('total-ves').innerText = tVes.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
         };
 
+        const loadLocalData = () => {
+            const savedItems = localStorage.getItem(`items_${appId}`);
+            if (savedItems) shoppingCart = JSON.parse(savedItems);
+            
+            const savedTasa = localStorage.getItem(`tasa_${appId}`);
+            if (savedTasa) document.getElementById('tasa-input').value = savedTasa;
+            
+            const savedShop = localStorage.getItem(`shop_${appId}`);
+            if (savedShop) document.getElementById('shop-name').value = savedShop;
+            
+            window.render();
+        };
+
+        loadLocalData();
+
+        if (hasFirebaseEnv) {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) setupFirebaseListeners(user.uid);
+                    hideLoading();
+                });
+                initAuth();
+            } catch (e) { hideLoading(); }
+        } else { hideLoading(); }
+
+        function setupFirebaseListeners(uid) {
+            const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'settings');
+            onSnapshot(profileRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.tasa) document.getElementById('tasa-input').value = data.tasa;
+                    if (data.shopName) document.getElementById('shop-name').value = data.shopName;
+                    window.render();
+                }
+            });
+
+            const itemsRef = collection(db, 'artifacts', appId, 'users', uid, 'items');
+            onSnapshot(itemsRef, (snap) => {
+                shoppingCart = [];
+                snap.forEach(doc => {
+                    shoppingCart.push({ id: doc.id, ...doc.data() });
+                });
+                shoppingCart.sort((a, b) => b.createdAt - a.createdAt);
+                localStorage.setItem(`items_${appId}`, JSON.stringify(shoppingCart));
+                window.render();
+            });
+        }
+
+        window.saveProfile = async () => {
+            const tasa = document.getElementById('tasa-input').value;
+            const shopName = document.getElementById('shop-name').value;
+            
+            localStorage.setItem(`tasa_${appId}`, tasa);
+            localStorage.setItem(`shop_${appId}`, shopName);
+            
+            if (currentUser && db) {
+                const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'settings');
+                await setDoc(profileRef, { tasa, shopName }, { merge: true });
+            }
+        };
+
+        window.toggleTheme = () => {
+            isDarkMode = !isDarkMode;
+            const iconPath = document.getElementById('icon-path');
+            if (isDarkMode) {
+                document.body.classList.add('dark');
+                iconPath.setAttribute('d', MOON_PATH);
+            } else {
+                document.body.classList.remove('dark');
+                iconPath.setAttribute('d', SUN_PATH);
+            }
+        };
+
+        window.changeMode = (mode) => {
+            currentMode = mode;
+            document.getElementById('mode-usd').className = mode === 'USD' ? 'tab-btn tab-active' : 'tab-btn';
+            document.getElementById('mode-ves').className = mode === 'VES' ? 'tab-btn tab-active' : 'tab-btn';
+            document.getElementById('price-label').innerText = mode === 'USD' ? 'Precio $' : 'Precio Bs';
+            const addBtn = document.getElementById('add-btn');
+            addBtn.style.backgroundColor = mode === 'USD' ? '#22c55e' : '#2563eb';
+            document.getElementById('prod-price').focus();
+        };
+
+        window.addToList = async () => {
+            const pInput = document.getElementById('prod-price');
+            const nInput = document.getElementById('prod-name');
+            const price = parseNum(pInput.value);
+            if (price <= 0) return;
+
+            const item = {
+                name: nInput.value.trim() || 'Artículo ' + (shoppingCart.length + 1),
+                original: price,
+                mode: currentMode,
+                createdAt: Date.now()
+            };
+
+            if (currentUser && db) {
+                const itemsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'items');
+                await addDoc(itemsRef, item);
+            } else {
+                shoppingCart.unshift({...item, id: Date.now().toString()});
+                localStorage.setItem(`items_${appId}`, JSON.stringify(shoppingCart));
+                window.render();
+            }
+            
+            pInput.value = '';
+            nInput.value = '';
+            showToast();
+            nInput.focus();
+        };
+
+        window.removeItem = async (id) => {
+            if (currentUser && db) {
+                const itemRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', id);
+                await deleteDoc(itemRef);
+            } else {
+                shoppingCart = shoppingCart.filter(i => i.id !== id);
+                localStorage.setItem(`items_${appId}`, JSON.stringify(shoppingCart));
+                window.render();
+            }
+        };
+
+        window.clearCart = async () => {
+            if (shoppingCart.length === 0) return;
+            if (currentUser && db) {
+                for (const item of shoppingCart) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'items', item.id));
+                }
+            }
+            shoppingCart = [];
+            localStorage.removeItem(`items_${appId}`);
+            window.render();
+            showToast("Carrito Vacío");
+        };
+
         window.sendWhatsApp = () => {
             const shop = document.getElementById('shop-name').value.trim();
             const date = document.getElementById('date-display').innerText;
-            const tasaValue = parse(document.getElementById('tasa-input').value);
+            const tasaValue = parseNum(document.getElementById('tasa-input').value);
             let tu = 0, tv = 0;
             let m = `🛒 *CARRITO: ${shop ? shop.toUpperCase() : 'MI COMPRA'}*\n`;
             m += `📅 ${date}\n`;
@@ -583,7 +591,7 @@
 
         const now = new Date();
         document.getElementById('date-display').innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
-        render();
+        window.render();
     </script>
 </body>
 </html>
