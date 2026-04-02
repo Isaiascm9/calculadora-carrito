@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Calculadora Premium 3.10 - Feedback 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --bg-body: #f8fafc;
+            --text-main: #0f172a;
+            --card-bg: white;
+            --card-border: #f1f5f9;
+            --input-bg: #f1f5f9;
+            --tab-bg: #f1f5f9;
+            --tab-active: white;
+            --tab-text: #64748b;
+        }
+
+        .dark {
+            --bg-body: #020617;
+            --text-main: #f8fafc;
+            --card-bg: #0f172a;
+            --card-border: #1e293b;
+            --input-bg: #1e293b;
+            --tab-bg: #1e293b;
+            --tab-active: #334155;
+            --tab-text: #94a3b8;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        .premium-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        input {
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+            border: none;
+            background: transparent;
+            width: 100%;
+            color: inherit;
+        }
+
+        .input-wrapper {
+            background: var(--input-bg);
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            border-radius: 1.2rem;
+        }
+        
+        .input-wrapper:focus-within {
+            border-color: #3b82f6;
+            background: var(--card-bg);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.8rem;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border-radius: 1.5rem;
+            transition: all 0.2s;
+            color: var(--tab-text);
+        }
+
+        .tab-active {
+            background: var(--tab-active);
+            color: #2563eb;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .btn-send-text {
+            background: #25D366;
+            color: white;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1.1rem;
+            border-radius: 1.5rem;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 20px -5px rgba(37, 211, 102, 0.4);
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        .btn-send-text:active {
+            transform: scale(0.97);
+            background: #128C7E;
+        }
+
+        .header-bg {
+            background: #0f172a;
+            border-radius: 0 0 2.5rem 2.5rem;
+        }
+
+        .footer-credit {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-top: 0.8rem;
+            padding-bottom: 2rem;
+            letter-spacing: 0.02em;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #0f172a;
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 50;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .theme-toggle:active {
+            background: rgba(255,255,255,0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast">¡Sumado!</div>
+
+    <header class="header-bg text-white shadow-2xl mb-4">
+        <div class="max-w-md mx-auto p-5 pb-6">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex-1 mr-4">
+                    <div class="flex items-center gap-3 mb-1">
+                        <h1 class="text-xl font-800 tracking-tight flex items-center gap-2">
+                            <span>🛒</span> Carrito
+                        </h1>
+                        <!-- Icono de modo oscuro solicitado -->
+                        <button onclick="toggleTheme()" class="theme-toggle" title="Cambiar tema">
+                            <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 256 256">
+                                <path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="text" id="shop-name" 
+                           class="text-slate-400 font-500 text-xs border-b border-white/10 py-1" 
+                           placeholder="Nombre del establecimiento">
+                </div>
+                
+                <div class="text-right">
+                    <div class="bg-slate-800/80 px-3 py-1.5 rounded-2xl">
+                        <p class="text-[8px] font-black text-slate-500 uppercase">Tasa Bs/$</p>
+                        <input type="text" id="tasa-input" inputmode="decimal" value="44.14" oninput="recalculate()"
+                               class="font-800 text-white text-lg text-right w-16">
+                    </div>
+                    <p id="date-display" class="text-[9px] font-bold text-slate-500 mt-1 uppercase text-right tracking-tighter"></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-blue-600/10 p-3.5 rounded-3xl border border-blue-500/20 text-center">
+                    <p class="text-[9px] text-blue-400 font-black uppercase mb-0.5">USD</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span class="text-blue-500 font-bold">$</span>
+                        <span id="total-usd" class="text-2xl font-800">0.00</span>
+                    </div>
+                </div>
+                <div class="bg-emerald-600/10 p-3.5 rounded-3xl border border-emerald-500/20 text-center">
+                    <p class="text-[9px] text-emerald-400 font-black uppercase mb-0.5">VES</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span class="text-emerald-500 font-bold text-[10px]">Bs</span>
+                        <span id="total-ves" class="text-2xl font-800">0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto px-5">
+        <div class="premium-card p-3 shadow-sm mb-4">
+            <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-[1.8rem] mb-3 transition-colors">
+                <button id="mode-usd" onclick="changeMode('USD')" class="tab-btn tab-active">DÓLARES ($)</button>
+                <button id="mode-ves" onclick="changeMode('VES')" class="tab-btn">BOLÍVARES (Bs)</button>
+            </div>
+
+            <div class="px-2 pb-1 space-y-3">
+                <div class="input-wrapper px-4 py-2.5">
+                    <label class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Producto</label>
+                    <input type="text" id="prod-name" class="font-600 text-sm" placeholder="Nombre del artículo">
+                </div>
+
+                <div class="flex gap-3">
+                    <div class="input-wrapper flex-1 px-4 py-2.5">
+                        <label id="price-label" class="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Precio $</label>
+                        <input type="text" id="prod-price" inputmode="decimal" class="text-3xl font-900" placeholder="0.00">
+                    </div>
+                    <button onclick="addToList()" class="bg-blue-600 text-white w-14 h-14 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H140v76a12,12,0,0,1-24,0V140H40a12,12,0,0,1,0-24h76V40a12,12,0,0,1,24,0v76h76A12,12,0,0,1,228,128Z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="items-list" class="space-y-2.5"></div>
+
+        <div id="action-container" class="hidden">
+            <button onclick="sendWhatsApp()" class="btn-send-text">
+                Enviar Factura
+            </button>
+            <div class="footer-credit">Generado por Feedback 2026</div>
+        </div>
+    </main>
+
+    <script>
+        let shoppingCart = [];
+        let currentMode = 'USD';
+        let isDarkMode = false;
+
+        const dateEl = document.getElementById('date-display');
+        const now = new Date();
+        dateEl.innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark', isDarkMode);
+            const icon = document.getElementById('theme-icon');
+            if(isDarkMode) {
+                // Icono Sol
+                icon.innerHTML = '<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34L52.69,41.37a8,8,0,0,0-11.32,11.32Zm0,116.68-17,17a8,8,0,0,0,11.32,11.32l17-17a8,8,0,0,0-11.32-11.32ZM197.66,69.66l17-17a8,8,0,0,0-11.32-11.32l-17,17a8,8,0,0,0,11.32,11.32Zm0,116.68a8,8,0,0,0-11.32,11.32l17,17a8,8,0,0,0,11.32-11.32ZM240,120H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H16a8,8,0,0,0,0,16H40a8,8,0,0,0,0-16Zm157.66,77.66L214.63,214.63a8,8,0,0,0,11.32-11.32l-17-17a8,8,0,0,0-11.32,11.32ZM120,216v24a8,8,0,0,0,16,0V216a8,8,0,0,0-16,0Z"></path>';
+            } else {
+                // Icono Luna
+                icon.innerHTML = '<path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.11,104.11,0,1,0,129.8,129.8A8,8,0,0,0,233.54,142.23Z"></path>';
+            }
+        }
+
+        function parse(val) {
+            if (!val) return 0;
+            return parseFloat(val.toString().replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+        }
+
+        function showToast() {
+            const t = document.getElementById('toast');
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 1500);
+        }
+
+        function changeMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-usd').className = mode === 'USD' ? 'tab-btn tab-active' : 'tab-btn';
+            document.getElementById('mode-ves').className = mode === 'VES' ? 'tab-btn tab-active' : 'tab-btn';
+            document.getElementById('price-label').innerText = mode === 'USD' ? 'Precio $' : 'Precio Bs';
+            document.getElementById('prod-price').focus();
+        }
+
+        function addToList() {
+            const pInput = document.getElementById('prod-price');
+            const nInput = document.getElementById('prod-name');
+            const tInput = document.getElementById('tasa-input');
+            
+            const price = parse(pInput.value);
+            if (price <= 0) return;
+
+            const tasa = parse(tInput.value) || 44.14;
+            
+            const item = {
+                id: Date.now(),
+                name: nInput.value.trim() || 'Item ' + (shoppingCart.length + 1),
+                original: price,
+                mode: currentMode,
+                usd: currentMode === 'USD' ? price : Number((price / tasa).toFixed(2)),
+                ves: currentMode === 'VES' ? price : Number((price * tasa).toFixed(2))
+            };
+
+            shoppingCart.push(item);
+            pInput.value = '';
+            nInput.value = '';
+            render();
+            showToast();
+            nInput.focus();
+        }
+
+        function render() {
+            const list = document.getElementById('items-list');
+            const action = document.getElementById('action-container');
+            list.innerHTML = '';
+            let tUsd = 0, tVes = 0;
+
+            action.style.display = shoppingCart.length > 0 ? 'block' : 'none';
+
+            [...shoppingCart].reverse().forEach(item => {
+                tUsd += item.usd; 
+                tVes += item.ves;
+                
+                const card = document.createElement('div');
+                card.className = "premium-card p-4 flex justify-between items-center mb-2 shadow-sm";
+                
+                const alt = item.mode === 'USD' 
+                    ? `≈ Bs ${item.ves.toLocaleString('es-VE', {minimumFractionDigits:2})}` 
+                    : `≈ $ ${item.usd.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+
+                card.innerHTML = `
+                    <div class="truncate mr-4">
+                        <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${item.name}</p>
+                        <p class="text-xl font-800">${item.mode==='USD'?'$':'Bs'} ${item.original.toLocaleString('es-VE', {minimumFractionDigits:2})}</p>
+                        <p class="text-[10px] font-bold text-blue-500">${alt}</p>
+                    </div>
+                    <button onclick="removeItem(${item.id})" class="text-red-400/50 hover:text-red-500 p-2 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg></button>
+                `;
+                list.appendChild(card);
+            });
+
+            document.getElementById('total-usd').innerText = tUsd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('total-ves').innerText = tVes.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+        }
+
+        function removeItem(id) {
+            shoppingCart = shoppingCart.filter(i => i.id !== id);
+            render();
+        }
+
+        function recalculate() {
+            const tasa = parse(document.getElementById('tasa-input').value) || 1;
+            shoppingCart = shoppingCart.map(i => ({
+                ...i,
+                usd: i.mode === 'USD' ? i.original : Number((i.original / tasa).toFixed(2)),
+                ves: i.mode === 'VES' ? i.original : Number((i.original * tasa).toFixed(2))
+            }));
+            render();
+        }
+
+        function sendWhatsApp() {
+            const shop = document.getElementById('shop-name').value.trim();
+            const date = document.getElementById('date-display').innerText;
+            const tasa = document.getElementById('tasa-input').value;
+            let tu = 0, tv = 0;
+            
+            let m = `🛒 *CARRITO: ${shop ? shop.toUpperCase() : 'MI COMPRA'}*\n`;
+            m += `📅 ${date}\n`;
+            m += `━━━━━━━━━━━━━━━\n`;
+            
+            shoppingCart.forEach(i => {
+                tu += i.usd; tv += i.ves;
+                const vVes = i.ves.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+                const vUsd = i.usd.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+                m += `• ${i.name}: Bs ${vVes} / ${vUsd} $\n`;
+            });
+            
+            m += `━━━━━━━━━━━━━━━\n`;
+            m += `💵 TOTAL USD: $ ${tu.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
+            m += `🇻🇪 TOTAL BS: Bs ${tv.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
+            m += `📊 TASA: ${tasa} Bs/$\n`;
+            m += `━━━━━━━━━━━━━━━\n`;
+            m += `Generado por Feedback 2026`;
+            
+            window.open(`https://wa.me/?text=${encodeURIComponent(m)}`);
+        }
+
+        document.getElementById('prod-price').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') addToList();
+        });
+    </script>
+</body>
+</html>
